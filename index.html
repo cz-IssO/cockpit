@@ -1,0 +1,393 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f1418"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style></head><body><title>Schicht-Cockpit</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: eine Handy-Bildschirmseite – große Uhr oben, Schichtkarte, darunter 2×2 Kacheln für Live-Werte */
+:root {
+  --bg: #0f1418;
+  --panel: #171e24;
+  --line: #26303a;
+  --fg: #e7ecef;
+  --muted: #8b98a3;
+  --accent: #f0a63a;      /* Signal-Amber wie eine Schicht-Ampel */
+  --ok: #5fc48b;
+  --warn: #f0a63a;
+  --bad: #ef6b5b;
+  --sh-f: #f0a63a;        /* Frühschicht */
+  --sh-s: #6fb0e0;        /* Spätschicht */
+  --sh-n: #a395e6;        /* Nachtschicht */
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html, body { background: var(--bg); color: var(--fg); }
+body {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.4;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 18px 28px;
+}
+.wrap { max-width: 520px; margin: 0 auto; display: grid; gap: 14px; }
+
+/* Uhr */
+.clock { display: grid; gap: 2px; padding-block: 6px 4px; }
+.time {
+  font-family: var(--font-display); font-weight: 600;
+  font-size: clamp(76px, 26vw, 120px); line-height: .9; letter-spacing: -.01em;
+  font-variant-numeric: tabular-nums;
+}
+.time .sec { font-size: .36em; color: var(--muted); font-weight: 500; margin-left: 4px; }
+.date { color: var(--muted); font-size: 16px; }
+.date b { color: var(--fg); font-weight: 600; }
+
+.label {
+  font-size: 12px; text-transform: uppercase; letter-spacing: .09em;
+  color: var(--muted); font-weight: 600;
+}
+
+/* Schicht */
+.shift {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px; display: grid; gap: 12px;
+  border-left: 4px solid var(--accent);
+}
+.shift-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.shift-name { font-family: var(--font-display); font-size: 30px; font-weight: 700; line-height: 1; }
+.shift-start { font-family: var(--font-display); font-size: 22px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.countdown { font-size: 16px; }
+.countdown b { font-variant-numeric: tabular-nums; }
+.arrive { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.arrive b { color: var(--fg); font-weight: 600; }
+.week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.day {
+  display: grid; justify-items: center; gap: 3px; padding: 6px 0 7px;
+  border-radius: 9px; border: 1px solid transparent; min-width: 0;
+}
+.day.today { border-color: var(--line); background: rgba(255,255,255,.03); }
+.day small { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip {
+  font: 700 13px/1 var(--font-display); letter-spacing: .02em;
+  width: 30px; height: 24px; border-radius: 6px; display: grid; place-items: center;
+  color: #12161a;
+}
+.chip.F { background: var(--sh-f); }
+.chip.S { background: var(--sh-s); }
+.chip.N, .chip.N1 { background: var(--sh-n); }
+.chip.X { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+.chip.U { background: transparent; color: var(--muted); }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--muted); }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: 0; }
+.btn:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+
+/* Kacheln */
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tile {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px; display: grid; gap: 6px; align-content: start; min-width: 0;
+}
+.big {
+  font-family: var(--font-display); font-weight: 600; font-size: 40px; line-height: 1;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.big .unit { font-size: .5em; color: var(--muted); margin-left: 2px; }
+.sub { color: var(--muted); font-size: 13px; min-height: 18px; }
+.src { font-size: 11px; color: var(--muted); opacity: .85; }
+.up { color: var(--ok); } .down { color: var(--bad); }
+
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .4s; }
+
+.note {
+  font-size: 13px; color: var(--muted); border: 1px dashed var(--line);
+  border-radius: 12px; padding: 10px 12px;
+}
+.foot { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.btn {
+  font: 600 13px/1 var(--font-body); color: var(--fg); background: transparent;
+  border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; cursor: pointer;
+}
+.btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .bar > i { transition: none; } }
+</style>
+
+<main class="wrap">
+  <section class="clock" aria-label="Uhrzeit">
+    <div class="time" id="time">--:--<span class="sec">--</span></div>
+    <div class="date" id="date">&nbsp;</div>
+  </section>
+
+  <section class="shift" aria-label="Schicht">
+    <div class="shift-head">
+      <div>
+        <div class="label" id="shiftLabel">Heute · Dottikon</div>
+        <div class="shift-name" id="shiftName">–</div>
+      </div>
+      <div class="shift-start" id="shiftStart"></div>
+    </div>
+    <div class="arrive" id="arrive">&nbsp;</div>
+    <div class="countdown" id="countdown">&nbsp;</div>
+    <div class="week" id="week" aria-label="Nächste 7 Tage"></div>
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--sh-f)"></i>Früh</span>
+      <span><i style="background:var(--sh-s)"></i>Spät</span>
+      <span><i style="background:var(--sh-n)"></i>Nacht</span>
+      <span><i style="border:1px solid var(--line)"></i>Frei</span>
+    </div>
+  </section>
+
+  <section class="tiles" aria-label="Live-Werte">
+    <div class="tile">
+      <div class="label">Lörrach</div>
+      <div class="big" id="tLoe">–<span class="unit">°C</span></div>
+      <div class="sub" id="wLoe">&nbsp;</div>
+    </div>
+    <div class="tile">
+      <div class="label">Dottikon</div>
+      <div class="big" id="tDot">–<span class="unit">°C</span></div>
+      <div class="sub" id="wDot">&nbsp;</div>
+    </div>
+    <div class="tile">
+      <div class="label">Akku</div>
+      <div class="big" id="bat">–<span class="unit">%</span></div>
+      <div class="bar" aria-hidden="true"><i id="batBar"></i></div>
+      <div class="sub" id="batSub">&nbsp;</div>
+    </div>
+    <div class="tile">
+      <div class="label">XRP in Euro</div>
+      <div class="big" id="xrp">–</div>
+      <div class="sub" id="xrpSub">&nbsp;</div>
+    </div>
+  </section>
+
+  <div class="src" id="srcLine">Schichtplan: Supershift-PDF 2026 (eingelesen 08.11.2026) · Wetter: Open-Meteo · Kurs: CoinGecko · Akku: Browser</div>
+  <div class="note" id="note" hidden></div>
+
+  <div class="foot">
+    <button type="button" class="btn" id="refresh">Aktualisieren</button>
+    <button type="button" class="btn" id="wake" aria-pressed="false">Bildschirm an lassen</button>
+  </div>
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2, "0");
+  /* Schichtplan aus Supershift-PDF 2026. F=Früh, S=Spät, N1=1. Nacht, N=Nacht, X=Frei */
+  const PLAN = {"2026-11-01":"N","2026-11-02":"X","2026-11-03":"X","2026-11-04":"F","2026-11-05":"F","2026-11-06":"S","2026-11-07":"S","2026-11-08":"S","2026-11-09":"N1","2026-11-10":"N","2026-11-11":"X","2026-11-12":"X","2026-11-13":"F","2026-11-14":"F","2026-11-15":"F","2026-11-16":"S","2026-11-17":"S","2026-11-18":"N1","2026-11-19":"N","2026-11-20":"X","2026-11-21":"X","2026-11-22":"X","2026-11-23":"F","2026-11-24":"F","2026-11-25":"S","2026-11-26":"S","2026-11-27":"N1","2026-11-28":"N","2026-11-29":"N","2026-11-30":"X","2026-12-01":"X","2026-12-02":"F","2026-12-03":"F","2026-12-04":"S","2026-12-05":"S","2026-12-06":"S","2026-12-07":"N1","2026-12-08":"N","2026-12-09":"X","2026-12-10":"X","2026-12-11":"F","2026-12-12":"F","2026-12-13":"F","2026-12-14":"S","2026-12-15":"S","2026-12-16":"N1","2026-12-17":"N","2026-12-18":"X","2026-12-19":"X","2026-12-20":"X","2026-12-21":"F","2026-12-22":"F","2026-12-23":"S","2026-12-24":"S","2026-12-25":"N1","2026-12-26":"N","2026-12-27":"N","2026-12-28":"X","2026-12-29":"X","2026-12-30":"F","2026-12-31":"F"};
+  /* Zeiten: Ankunft vor Ort (laut Marcel) und Schicht laut Kalender-Export */
+  const TYPES = {
+    F:  { name: "Frühschicht",  short: "F", arrive: [4, 30],  start: [4, 50],  end: [13, 20], night: false },
+    S:  { name: "Spätschicht",  short: "S", arrive: [12, 30], start: [12, 50], end: [21, 20], night: false },
+    N1: { name: "1. Nacht",     short: "N", arrive: [20, 30], start: [20, 50], end: [5, 20],  night: true },
+    N:  { name: "Nachtschicht", short: "N", arrive: [20, 30], start: [20, 50], end: [5, 20],  night: true },
+    X:  { name: "Frei",         short: "–" }
+  };
+  const key = d => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  const at = (dayKey, hm, plusDay) => {
+    const [y, mo, da] = dayKey.split("-").map(Number);
+    return new Date(y, mo - 1, da + (plusDay ? 1 : 0), hm[0], hm[1]);
+  };
+  const SHIFTS = Object.keys(PLAN).sort().filter(k => PLAN[k] !== "X").map(k => {
+    const t = TYPES[PLAN[k]];
+    return { day: k, code: PLAN[k], t, arrive: at(k, t.arrive), start: at(k, t.start), end: at(k, t.end, t.night) };
+  });
+  const LAST_DAY = Object.keys(PLAN).sort().pop();
+  const hm = d => pad(d.getHours()) + ":" + pad(d.getMinutes());
+  const wd = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+  const shortDate = d => wd[d.getDay()] + " " + pad(d.getDate()) + "." + pad(d.getMonth() + 1) + ".";
+  function span(ms) {
+    const min = Math.max(0, Math.floor(ms / 60000));
+    const d = Math.floor(min / 1440), h = Math.floor((min % 1440) / 60), m = min % 60;
+    if (d) return d + " T " + h + " h";
+    return (h ? h + " h " : "") + m + " min";
+  }
+  function dayWord(d, now) {
+    const a = new Date(now); a.setHours(0, 0, 0, 0);
+    const b = new Date(d); b.setHours(0, 0, 0, 0);
+    const diff = Math.round((b - a) / 86400000);
+    return diff === 0 ? "heute" : diff === 1 ? "morgen" : shortDate(d);
+  }
+
+  /* ---------- Uhr & Schicht ---------- */
+  const dateFmt = new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  let lastWeekKey = "";
+  function tick() {
+    const now = new Date();
+    $("time").innerHTML = pad(now.getHours()) + ":" + pad(now.getMinutes()) +
+      '<span class="sec">' + pad(now.getSeconds()) + "</span>";
+    const d = dateFmt.format(now);
+    const i = d.indexOf(",");
+    $("date").innerHTML = "<b>" + d.slice(0, i) + "</b>" + d.slice(i);
+    renderShift(now);
+    if (key(now) !== lastWeekKey) { lastWeekKey = key(now); renderWeek(now); }
+  }
+  function renderShift(now) {
+    const running = SHIFTS.find(s => s.start <= now && now < s.end);
+    const next = SHIFTS.find(s => s.arrive > now && s !== running);
+    const todayCode = PLAN[key(now)];
+    const main = running || (todayCode && todayCode !== "X" ? SHIFTS.find(s => s.day === key(now) && now < s.end) : null);
+
+    if (main) {
+      $("shiftLabel").textContent = (running ? "Läuft gerade" : "Heute") + " · Dottikon";
+      $("shiftName").textContent = main.t.name;
+      $("shiftStart").textContent = hm(main.start) + "–" + hm(main.end);
+      $("arrive").innerHTML = "Vor Ort <b>" + hm(main.arrive) + "</b> · Schicht <b>" + hm(main.start) + "</b>";
+      if (running) {
+        let txt = "Endet in <b>" + span(main.end - now) + "</b>";
+        if (next) txt += " · danach " + next.t.name + " " + dayWord(next.arrive, now);
+        $("countdown").innerHTML = txt;
+      } else if (now < main.arrive) {
+        $("countdown").innerHTML = "Vor Ort in <b>" + span(main.arrive - now) + "</b>";
+      } else {
+        $("countdown").innerHTML = "Schichtbeginn in <b>" + span(main.start - now) + "</b>";
+      }
+    } else if (todayCode === "X" || (todayCode && !main)) {
+      $("shiftLabel").textContent = "Heute · Dottikon";
+      $("shiftName").textContent = todayCode === "X" ? "Frei" : "Feierabend";
+      $("shiftStart").textContent = "";
+      setNext(next, now);
+    } else {
+      $("shiftLabel").textContent = "Heute";
+      $("shiftName").textContent = "Kein Plan";
+      $("shiftStart").textContent = "";
+      $("arrive").textContent = "Der eingelesene Plan endet am " + LAST_DAY.split("-").reverse().join(".") + ".";
+      $("countdown").textContent = "Schick Claude den neuen Schichtplan.";
+    }
+  }
+  function setNext(next, now) {
+    if (next) {
+      $("arrive").innerHTML = "Nächste: <b>" + next.t.name + "</b> " + dayWord(next.arrive, now) +
+        " · vor Ort <b>" + hm(next.arrive) + "</b>";
+      $("countdown").innerHTML = "Noch <b>" + span(next.arrive - now) + "</b>";
+    } else {
+      $("arrive").textContent = "Keine weitere Schicht im eingelesenen Plan.";
+      $("countdown").textContent = "Plan endet am " + LAST_DAY.split("-").reverse().join(".") + ".";
+    }
+  }
+  function renderWeek(now) {
+    const wrap = $("week");
+    wrap.textContent = "";
+    for (let n = 0; n < 7; n++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + n);
+      const c = PLAN[key(d)];
+      const cell = document.createElement("div");
+      cell.className = "day" + (n === 0 ? " today" : "");
+      const top = document.createElement("small");
+      top.textContent = wd[d.getDay()];
+      const chip = document.createElement("span");
+      chip.className = "chip " + (c || "U");
+      chip.textContent = c ? TYPES[c].short : "?";
+      chip.title = c ? TYPES[c].name : "Nicht im Plan";
+      const bot = document.createElement("small");
+      bot.textContent = pad(d.getDate()) + ".";
+      cell.append(top, chip, bot);
+      cell.setAttribute("aria-label", shortDate(d) + ": " + (c ? TYPES[c].name : "nicht im Plan"));
+      wrap.append(cell);
+    }
+  }
+  tick(); setInterval(tick, 1000);
+
+  /* ---------- Hinweis bei blockierten Live-Daten ---------- */
+  let blocked = 0;
+  function showBlocked() {
+    blocked++;
+    const n = $("note");
+    n.hidden = false;
+    n.textContent = "Wetter und XRP-Kurs konnten nicht geladen werden. In der Claude-App sind Internet-Abrufe aus der Seite gesperrt – " +
+      "öffne die eigenständige Datei im Handy-Browser, dann laden die Werte live.";
+  }
+
+  /* ---------- Wetter (Open-Meteo, ohne API-Schlüssel) ---------- */
+  const WMO = {0:"Klar",1:"Überwiegend klar",2:"Teils bewölkt",3:"Bedeckt",45:"Nebel",48:"Reifnebel",
+    51:"Leichter Niesel",53:"Niesel",55:"Starker Niesel",56:"Gefr. Niesel",57:"Gefr. Niesel",
+    61:"Leichter Regen",63:"Regen",65:"Starker Regen",66:"Gefr. Regen",67:"Gefr. Regen",
+    71:"Leichter Schnee",73:"Schnee",75:"Starker Schnee",77:"Schneegriesel",
+    80:"Schauer",81:"Schauer",82:"Starke Schauer",85:"Schneeschauer",86:"Schneeschauer",
+    95:"Gewitter",96:"Gewitter, Hagel",99:"Gewitter, Hagel"};
+  const PLACES = [
+    { t: "tLoe", w: "wLoe", lat: 47.6156, lon: 7.6614 },  // Lörrach
+    { t: "tDot", w: "wDot", lat: 47.3840, lon: 8.2400 }   // Dottikon
+  ];
+  async function loadWeather() {
+    for (const p of PLACES) {
+      try {
+        const url = "https://api.open-meteo.com/v1/forecast?latitude=" + p.lat + "&longitude=" + p.lon +
+          "&current=temperature_2m,apparent_temperature,weather_code&timezone=Europe%2FBerlin";
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(r.status);
+        const j = await r.json();
+        const c = j.current;
+        $(p.t).innerHTML = Math.round(c.temperature_2m) + '<span class="unit">°C</span>';
+        $(p.w).textContent = (WMO[c.weather_code] || "–") + " · gefühlt " + Math.round(c.apparent_temperature) + "°";
+      } catch (e) {
+        $(p.w).textContent = "nicht verfügbar";
+        if (!blocked) showBlocked();
+      }
+    }
+  }
+
+  /* ---------- XRP (CoinGecko, ohne API-Schlüssel) ---------- */
+  const eur = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", minimumFractionDigits: 3, maximumFractionDigits: 4 });
+  async function loadXrp() {
+    try {
+      const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=ripple&vs_currencies=eur&include_24hr_change=true&include_last_updated_at=true");
+      if (!r.ok) throw new Error(r.status);
+      const x = (await r.json()).ripple;
+      $("xrp").textContent = eur.format(x.eur);
+      const ch = x.eur_24h_change;
+      const t = new Date(x.last_updated_at * 1000);
+      $("xrpSub").innerHTML = '<span class="' + (ch >= 0 ? "up" : "down") + '">' +
+        (ch >= 0 ? "▲ " : "▼ ") + Math.abs(ch).toFixed(2).replace(".", ",") + " %</span> 24 h · Stand " +
+        pad(t.getHours()) + ":" + pad(t.getMinutes());
+    } catch (e) {
+      $("xrpSub").textContent = "nicht verfügbar";
+      if (!blocked) showBlocked();
+    }
+  }
+
+  /* ---------- Akku (Battery Status API: Android/Chrome ja, iPhone/Safari nein) ---------- */
+  async function initBattery() {
+    if (!navigator.getBattery) {
+      $("batSub").textContent = "Vom Browser nicht unterstützt";
+      return;
+    }
+    try {
+      const b = await navigator.getBattery();
+      const draw = () => {
+        const lvl = Math.round(b.level * 100);
+        $("bat").innerHTML = lvl + '<span class="unit">%</span>';
+        const bar = $("batBar");
+        bar.style.width = lvl + "%";
+        bar.style.background = lvl <= 15 ? "var(--bad)" : lvl <= 30 ? "var(--warn)" : "var(--ok)";
+        $("batSub").textContent = b.charging ? "Lädt" : "Entlädt";
+      };
+      draw();
+      b.addEventListener("levelchange", draw);
+      b.addEventListener("chargingchange", draw);
+    } catch (e) {
+      $("batSub").textContent = "Kein Zugriff";
+    }
+  }
+
+  /* ---------- Bildschirm an lassen (Wake Lock) ---------- */
+  let lock = null;
+  $("wake").addEventListener("click", async () => {
+    const btn = $("wake");
+    if (lock) { try { await lock.release(); } catch (e) {} lock = null; btn.setAttribute("aria-pressed", "false"); return; }
+    try {
+      lock = await navigator.wakeLock.request("screen");
+      btn.setAttribute("aria-pressed", "true");
+      lock.addEventListener("release", () => { lock = null; btn.setAttribute("aria-pressed", "false"); });
+    } catch (e) { btn.textContent = "Nicht möglich"; }
+  });
+
+  $("refresh").addEventListener("click", () => { loadWeather(); loadXrp(); });
+  loadWeather(); loadXrp(); initBattery();
+  setInterval(loadWeather, 15 * 60 * 1000);
+  setInterval(loadXrp, 2 * 60 * 1000);
+})();
+</script>
+</body></html>
